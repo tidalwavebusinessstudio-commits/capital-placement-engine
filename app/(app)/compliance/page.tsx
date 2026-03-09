@@ -1,4 +1,7 @@
-import { MOCK_COMPLIANCE_LOG } from "@/lib/mock-data-extended";
+"use client";
+
+import { useMemo } from "react";
+import { useData } from "@/lib/store/DataContext";
 import Badge from "@/components/ui/Badge";
 
 const ACTION_LABELS: Record<string, string> = {
@@ -16,8 +19,11 @@ const ACTION_COLORS: Record<string, "blue" | "green" | "amber" | "slate" | "viol
 };
 
 export default function CompliancePage() {
-  const logs = [...MOCK_COMPLIANCE_LOG].sort(
-    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  const { complianceLog } = useData();
+
+  const logs = useMemo(
+    () => [...complianceLog].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
+    [complianceLog]
   );
 
   const pendingApproval = logs.filter((l) => l.firm_approval_required && !l.firm_approved);
@@ -34,7 +40,6 @@ export default function CompliancePage() {
         </p>
       </div>
 
-      {/* Pending Approvals Banner */}
       {pendingApproval.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
           <h2 className="text-sm font-semibold text-amber-800 mb-2">
@@ -58,7 +63,6 @@ export default function CompliancePage() {
         </div>
       )}
 
-      {/* Immutable Audit Trail */}
       <div className="bg-surface rounded-xl border border-border overflow-hidden">
         <div className="px-4 py-3 border-b border-border bg-surface-secondary">
           <div className="flex items-center gap-2">

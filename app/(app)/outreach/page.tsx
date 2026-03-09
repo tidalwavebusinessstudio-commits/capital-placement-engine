@@ -1,6 +1,8 @@
+"use client";
+
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { MOCK_OUTREACH } from "@/lib/mock-data-extended";
-import { getMockContact, getMockProject } from "@/lib/mock-data";
+import { useData } from "@/lib/store/DataContext";
 import Badge from "@/components/ui/Badge";
 
 const STATUS_COLORS: Record<string, "blue" | "green" | "amber" | "slate" | "red" | "violet"> = {
@@ -22,9 +24,28 @@ const CHANNEL_ICONS: Record<string, string> = {
 };
 
 export default function OutreachPage() {
-  const outreach = [...MOCK_OUTREACH].sort(
-    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  );
+  const { outreach, getContact, getProject } = useData();
+  const [search, setSearch] = useState("");
+
+  const sorted = useMemo(() => {
+    let list = [...outreach].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter((o) => {
+        const contact = o.contact_id ? getContact(o.contact_id) : null;
+        const project = o.project_id ? getProject(o.project_id) : null;
+        return (
+          o.subject?.toLowerCase().includes(q) ||
+          o.channel.includes(q) ||
+          contact && `${contact.first_name} ${contact.last_name}`.toLowerCase().includes(q) ||
+          project?.name.toLowerCase().includes(q)
+        );
+      });
+    }
+    return list;
+  }, [outreach, search, getContact, getProject]);
 
   const stats = {
     total: outreach.length,
@@ -53,10 +74,21 @@ export default function OutreachPage() {
         </Link>
       </div>
 
+      {/* Search */}
+      <div className="mb-4">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search outreach..."
+          className="w-full max-w-xs px-3 py-2 bg-surface border border-border rounded-lg text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand"
+        />
+      </div>
+
       <div className="space-y-2">
-        {outreach.map((item) => {
-          const contact = item.contact_id ? getMockContact(item.contact_id) : null;
-          const project = item.project_id ? getMockProject(item.project_id) : null;
+        {sorted.map((item) => {
+          const contact = item.contact_id ? getContact(item.contact_id) : null;
+          const project = item.project_id ? getProject(item.project_id) : null;
 
           return (
             <div
@@ -104,6 +136,11 @@ export default function OutreachPage() {
             </div>
           );
         })}
+        {sorted.length === 0 && (
+          <div className="text-center py-8 text-text-muted text-sm">
+            No outreach entries match your search
+          </div>
+        )}
       </div>
     </div>
   );
