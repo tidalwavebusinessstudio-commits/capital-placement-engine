@@ -1,9 +1,14 @@
+"use client";
+
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { MOCK_SOURCE_RECORDS } from "@/lib/mock-data-extended";
+import { useData } from "@/lib/store/DataContext";
+import { useToast } from "@/lib/store/ToastContext";
 import { SECTORS } from "@/lib/config/sectors";
 import { formatCurrency } from "@/lib/utils/format";
 import Badge from "@/components/ui/Badge";
 import ScoreGauge from "@/components/ui/ScoreGauge";
+import type { SourceStatus } from "@/lib/types";
 
 const STATUS_COLORS: Record<string, "blue" | "green" | "amber" | "slate"> = {
   new: "blue",
@@ -22,11 +27,45 @@ const SOURCE_TYPE_LABELS: Record<string, string> = {
   csv_import: "CSV",
 };
 
+const STATUS_OPTIONS: { value: SourceStatus | "all"; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "new", label: "New" },
+  { value: "reviewed", label: "Reviewed" },
+  { value: "converted", label: "Converted" },
+  { value: "dismissed", label: "Dismissed" },
+];
+
 export default function SourcesPage() {
-  const sources = [...MOCK_SOURCE_RECORDS].sort(
-    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  );
-  const newCount = sources.filter((s) => s.status === "new").length;
+  const { sourceRecords, updateSourceStatus } = useData();
+  const { toast } = useToast();
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<SourceStatus | "all">("all");
+
+  const filtered = useMemo(() => {
+    let list = [...sourceRecords].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+    if (statusFilter !== "all") {
+      list = list.filter((s) => s.status === statusFilter);
+    }
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter(
+        (s) =>
+          s.title.toLowerCase().includes(q) ||
+          s.location_guess?.toLowerCase().includes(q) ||
+          s.source_type.includes(q)
+      );
+    }
+    return list;
+  }, [sourceRecords, search, statusFilter]);
+
+  const newCount = sourceRecords.filter((s) => s.status === "new").length;
+
+  function handleStatusChange(id: string, status: SourceStatus) {
+    updateSourceStatus(id, status);
+    toast(status === "dismissed" ? "Source dismissed" : `Source marked as ${status}`);
+  }
 
   return (
     <div>
@@ -34,10 +73,17 @@ export default function SourcesPage() {
         <div>
           <h1 className="text-2xl font-bold text-text-primary">Sources</h1>
           <p className="text-sm text-text-secondary mt-0.5">
-            {sources.length} records &middot; {newCount} new
+            {sourceRecords.length} records &middot;{" "}
+            <span className="text-blue-600">{newCount} new</span>
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Link
+            href="/sources/feeds"
+            className="inline-flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-text-primary px-3 py-2 rounded-lg hover:bg-surface-secondary transition-colors"
+          >
+            📡 Monitors
+          </Link>
           <Link
             href="/sources/extract"
             className="inline-flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-text-primary px-3 py-2 rounded-lg hover:bg-surface-secondary transition-colors"
@@ -56,14 +102,39 @@ export default function SourcesPage() {
         </div>
       </div>
 
+      {/* Filters */}
+      <div className="flex items-center gap-3 mb-4">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search sources..."
+          className="w-full max-w-xs px-3 py-2 bg-surface border border-border rounded-lg text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand"
+        />
+        <div className="flex items-center gap-1">
+          {STATUS_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => setStatusFilter(opt.value)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                statusFilter === opt.value
+                  ? "bg-brand text-white"
+                  : "text-text-secondary hover:bg-surface-secondary"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="space-y-3">
-        {sources.map((source) => {
+        {filtered.map((source) => {
           const sectorConfig = source.sector_guess ? SECTORS[source.sector_guess] : null;
           return (
-            <Link
+            <div
               key={source.id}
-              href={`/sources/${source.id}`}
-              className="block bg-surface rounded-xl border border-border p-4 hover:border-brand/40 hover:shadow-sm transition-all"
+              className="bg-surface rounded-xl border border-border p-4 hover:border-brand/40 hover:shadow-sm transition-all"
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
@@ -76,9 +147,11 @@ export default function SourcesPage() {
                       </span>
                     )}
                   </div>
-                  <h3 className="text-sm font-semibold text-text-primary truncate">
-                    {source.title}
-                  </h3>
+                  <Link href={`/sources/${source.id}`}>
+                    <h3 className="text-sm font-semibold text-text-primary truncate hover:underline">
+                      {source.title}
+                    </h3>
+                  </Link>
                   <div className="flex items-center gap-3 mt-1 text-xs text-text-muted">
                     {source.location_guess && <span>{source.location_guess}</span>}
                     {source.amount_guess && (
@@ -93,12 +166,48 @@ export default function SourcesPage() {
                       })}
                     </span>
                   </div>
+                  {source.raw_content && (
+                    <p className="text-xs text-text-muted mt-1.5 line-clamp-2">{source.raw_content}</p>
+                  )}
                 </div>
-                <ScoreGauge score={source.relevance_score} />
+
+                <div className="flex items-center gap-2">
+                  <ScoreGauge score={source.relevance_score} />
+                  {/* Quick actions */}
+                  {source.status === "new" && (
+                    <div className="flex flex-col gap-1">
+                      <button
+                        onClick={() => handleStatusChange(source.id, "reviewed")}
+                        className="text-xs text-amber-600 hover:bg-amber-50 px-2 py-1 rounded transition-colors"
+                      >
+                        Review
+                      </button>
+                      <button
+                        onClick={() => handleStatusChange(source.id, "dismissed")}
+                        className="text-xs text-text-muted hover:text-red-500 hover:bg-red-50 px-2 py-1 rounded transition-colors"
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                  )}
+                  {source.status === "reviewed" && (
+                    <Link
+                      href={`/projects/new?source=${source.id}`}
+                      className="text-xs text-brand font-medium hover:bg-brand/10 px-2 py-1 rounded transition-colors whitespace-nowrap"
+                    >
+                      → Convert
+                    </Link>
+                  )}
+                </div>
               </div>
-            </Link>
+            </div>
           );
         })}
+        {filtered.length === 0 && (
+          <div className="text-center py-8 text-text-muted text-sm">
+            No sources match your filters
+          </div>
+        )}
       </div>
     </div>
   );

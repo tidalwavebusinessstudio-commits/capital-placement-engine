@@ -36,8 +36,11 @@ type Action =
   | { type: "ADD_PROJECT"; payload: Project }
   | { type: "ADD_OUTREACH"; payload: Outreach }
   | { type: "ADD_OPPORTUNITY"; payload: Opportunity }
+  | { type: "ADD_SOURCE_RECORD"; payload: SourceRecord }
+  | { type: "ADD_NEWSLETTER"; payload: Newsletter }
+  | { type: "UPDATE_NEWSLETTER"; payload: Partial<Newsletter> & { id: string } }
   | { type: "UPDATE_PROJECT_STAGE"; payload: { id: string; stage: ProjectStage } }
-  | { type: "UPDATE_SOURCE_STATUS"; payload: { id: string; status: SourceRecord["status"] } }
+  | { type: "UPDATE_SOURCE_STATUS"; payload: { id: string; status: SourceRecord["status"]; converted_project_id?: string } }
   | { type: "ADD_ACTIVITY"; payload: ActivityLogEntry }
   | { type: "ADD_COMPLIANCE_ENTRY"; payload: ComplianceLogEntry };
 
@@ -53,6 +56,17 @@ function reducer(state: DataState, action: Action): DataState {
       return { ...state, outreach: [action.payload, ...state.outreach] };
     case "ADD_OPPORTUNITY":
       return { ...state, opportunities: [action.payload, ...state.opportunities] };
+    case "ADD_SOURCE_RECORD":
+      return { ...state, sourceRecords: [action.payload, ...state.sourceRecords] };
+    case "ADD_NEWSLETTER":
+      return { ...state, newsletters: [action.payload, ...state.newsletters] };
+    case "UPDATE_NEWSLETTER":
+      return {
+        ...state,
+        newsletters: state.newsletters.map((n) =>
+          n.id === action.payload.id ? { ...n, ...action.payload, updated_at: new Date().toISOString() } : n
+        ),
+      };
     case "UPDATE_PROJECT_STAGE":
       return {
         ...state,
@@ -66,7 +80,9 @@ function reducer(state: DataState, action: Action): DataState {
       return {
         ...state,
         sourceRecords: state.sourceRecords.map((s) =>
-          s.id === action.payload.id ? { ...s, status: action.payload.status } : s
+          s.id === action.payload.id
+            ? { ...s, status: action.payload.status, converted_project_id: action.payload.converted_project_id ?? s.converted_project_id }
+            : s
         ),
       };
     case "ADD_ACTIVITY":
@@ -87,11 +103,16 @@ interface DataContextValue extends DataState {
   addProject: (project: Project) => void;
   addOutreach: (outreach: Outreach) => void;
   addOpportunity: (opp: Opportunity) => void;
+  addSourceRecord: (source: SourceRecord) => void;
+  addNewsletter: (nl: Newsletter) => void;
+  updateNewsletter: (updates: Partial<Newsletter> & { id: string }) => void;
   updateProjectStage: (id: string, stage: ProjectStage) => void;
-  updateSourceStatus: (id: string, status: SourceRecord["status"]) => void;
+  updateSourceStatus: (id: string, status: SourceRecord["status"], convertedProjectId?: string) => void;
   getOrg: (id: string) => Organization | undefined;
   getContact: (id: string) => Contact | undefined;
   getProject: (id: string) => Project | undefined;
+  getSourceRecord: (id: string) => SourceRecord | undefined;
+  getNewsletter: (id: string) => Newsletter | undefined;
   getContactsForOrg: (orgId: string) => Contact[];
   getProjectsForOrg: (orgId: string) => Project[];
   getOutreachForContact: (contactId: string) => Outreach[];
@@ -160,6 +181,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
     logActivity("created", "opportunity", opp.id, { project_id: opp.project_id, amount: opp.amount });
   }, [logActivity]);
 
+  const addSourceRecord = useCallback((source: SourceRecord) => {
+    dispatch({ type: "ADD_SOURCE_RECORD", payload: source });
+    logActivity("source_added", "source_record", source.id, { title: source.title, source_type: source.source_type });
+  }, [logActivity]);
+
+  const addNewsletter = useCallback((nl: Newsletter) => {
+    dispatch({ type: "ADD_NEWSLETTER", payload: nl });
+    logActivity("created", "newsletter", nl.id, { title: nl.title });
+  }, [logActivity]);
+
+  const updateNewsletter = useCallback((updates: Partial<Newsletter> & { id: string }) => {
+    dispatch({ type: "UPDATE_NEWSLETTER", payload: updates });
+    logActivity("updated", "newsletter", updates.id, { fields: Object.keys(updates).filter((k) => k !== "id") });
+  }, [logActivity]);
+
   const updateProjectStage = useCallback((id: string, stage: ProjectStage) => {
     const project = state.projects.find((p) => p.id === id);
     dispatch({ type: "UPDATE_PROJECT_STAGE", payload: { id, stage } });
@@ -184,14 +220,17 @@ export function DataProvider({ children }: { children: ReactNode }) {
     });
   }, [state.projects, logActivity]);
 
-  const updateSourceStatus = useCallback((id: string, status: SourceRecord["status"]) => {
-    dispatch({ type: "UPDATE_SOURCE_STATUS", payload: { id, status } });
-  }, []);
+  const updateSourceStatus = useCallback((id: string, status: SourceRecord["status"], convertedProjectId?: string) => {
+    dispatch({ type: "UPDATE_SOURCE_STATUS", payload: { id, status, converted_project_id: convertedProjectId } });
+    logActivity("source_status_changed", "source_record", id, { status, converted_project_id: convertedProjectId });
+  }, [logActivity]);
 
   // Getters
   const getOrg = useCallback((id: string) => state.organizations.find((o) => o.id === id), [state.organizations]);
   const getContact = useCallback((id: string) => state.contacts.find((c) => c.id === id), [state.contacts]);
   const getProject = useCallback((id: string) => state.projects.find((p) => p.id === id), [state.projects]);
+  const getSourceRecord = useCallback((id: string) => state.sourceRecords.find((s) => s.id === id), [state.sourceRecords]);
+  const getNewsletter = useCallback((id: string) => state.newsletters.find((n) => n.id === id), [state.newsletters]);
   const getContactsForOrg = useCallback((orgId: string) => state.contacts.filter((c) => c.organization_id === orgId), [state.contacts]);
   const getProjectsForOrg = useCallback((orgId: string) => state.projects.filter((p) => p.organization_id === orgId), [state.projects]);
   const getOutreachForContact = useCallback((contactId: string) => state.outreach.filter((o) => o.contact_id === contactId), [state.outreach]);
@@ -205,11 +244,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
     addProject,
     addOutreach,
     addOpportunity,
+    addSourceRecord,
+    addNewsletter,
+    updateNewsletter,
     updateProjectStage,
     updateSourceStatus,
     getOrg,
     getContact,
     getProject,
+    getSourceRecord,
+    getNewsletter,
     getContactsForOrg,
     getProjectsForOrg,
     getOutreachForContact,
