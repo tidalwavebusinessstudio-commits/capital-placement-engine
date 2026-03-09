@@ -86,11 +86,13 @@ Dev server runs on port 3002
 
 <claude-mem-context>
 ## Build Progress (as of 2026-03-08)
-Sprint 1-8 complete. v0.8.0. 34 routes (26 pages + 8 API). 0 build errors.
+Sprint 1-10 complete. v0.9.0. 34 routes (26 pages + 8 API). 0 build errors.
 Mock data mode works without env vars. Supabase-ready when credentials added.
 Sprint 6: React Context, toasts, search/filter, pipeline transitions, CRUD forms.
 Sprint 7: Supabase data access layer, API routes, RLS policies, seed data, auth flow, dev mode login.
 Sprint 8: Claude SDK — AI source extraction (/sources/extract), outreach drafter, score explainer. 3 AI API routes.
+Sprint 9: Git + GitHub repo (tidalwavebusinessstudio-commits/capital-placement-engine), Vercel config.
+Sprint 10: Polish — outreach & compliance pages wired to live context, responsive mobile sidebar (AppShell), search on outreach.
 
 ### Current Route Map (25 page files — all fully built)
 - /dashboard — KPIs ($645M pipeline, $14.7M fees, $7.3M Kevin share), pipeline by stage/sector, activity feed
@@ -124,6 +126,7 @@ Sprint 8: Claude SDK — AI source extraction (/sources/extract), outreach draft
 - lib/store/DataContext.tsx — React Context provider: all entities, CRUD actions, getters. Wraps app layout via AppProviders
 - lib/store/ToastContext.tsx — Toast notification system (success/error/info, auto-dismiss 4s)
 - components/providers/AppProviders.tsx — Client wrapper combining DataProvider + ToastProvider
+- components/layout/AppShell.tsx — Responsive shell: mobile sidebar slide-in + overlay, hamburger menu in Topbar
 - lib/mock-data.ts — 5 orgs, 5 contacts, 5 projects, 7 activity entries + helper functions
 - lib/mock-data-extended.ts — 6 source records, 5 outreach, 6 compliance log entries, 6 opportunities, 3 newsletters + helpers
 - supabase/schema.sql — 10-table schema with indexes, triggers, constraints
@@ -147,8 +150,14 @@ Sprint 8: Claude SDK — AI source extraction (/sources/extract), outreach draft
 - Dev server first-page compilation takes 10-15s, subsequent pages ~1-3s
 - Launch config at .claude/launch.json (workspace root SHAREit/.claude/)
 
+### GitHub & Deploy
+- GitHub: tidalwavebusinessstudio-commits/capital-placement-engine (private)
+- Vercel: vercel.json configured (region: iad1). Deploy via Vercel dashboard → import from GitHub
+- 3 commits on master branch
+
 ### What's Next
-- Phase 2: AI extraction (Claude SDK), source monitors, outreach automation, newsletter engine
+- Connect real Supabase credentials + run schema.sql + seed.sql
+- Deploy to Vercel (import from GitHub dashboard)
+- Phase 2: Source monitors, outreach automation, newsletter engine
 - Phase 3: Capital gap AI, advanced analytics, workflow automation
-- Eventually: Connect Supabase, deploy to Vercel, real auth
 </claude-mem-context>

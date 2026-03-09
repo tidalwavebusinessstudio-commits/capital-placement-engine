@@ -22,7 +22,7 @@ export default function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="fixed left-0 top-0 bottom-0 w-56 bg-sidebar-bg flex flex-col z-30">
+    <aside className="h-full w-56 bg-sidebar-bg flex flex-col">
       {/* Logo */}
       <div className="px-4 py-5 border-b border-white/10">
         <h1 className="text-lg font-bold text-white tracking-tight">
