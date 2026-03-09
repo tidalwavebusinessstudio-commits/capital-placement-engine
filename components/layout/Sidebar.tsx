@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { href: "/outreach", label: "Outreach", icon: "📧" },
   { href: "/sources", label: "Sources", icon: "📡" },
   { href: "/newsletter", label: "Newsletter", icon: "📰" },
+  { href: "/workflow", label: "Workflow", icon: "🔔" },
   { href: "/compliance", label: "Compliance", icon: "🛡️" },
   { href: "/analytics", label: "Analytics", icon: "📈" },
   { href: "/admin", label: "Admin", icon: "⚙️" },
