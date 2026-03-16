@@ -27,37 +27,56 @@ export default function FeedsPage() {
   async function checkFeed(feed: FeedConfig) {
     setChecking(feed.id);
 
-    // Simulate RSS check — in production this would fetch the actual feed
-    await new Promise((r) => setTimeout(r, 1500));
+    try {
+      const res = await fetch("/api/sources/feeds/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          feedId: feed.id,
+          feedName: feed.name,
+          feedUrl: feed.url,
+          sector: feed.sector,
+        }),
+      });
 
-    // Generate a simulated source record from the feed
-    const sectorConfig = SECTORS[feed.sector as Sector];
-    const mockTitle = `[${sectorConfig?.label ?? feed.sector}] New deal spotted via ${feed.name}`;
-    const record: SourceRecord = {
-      id: `src-${Date.now()}`,
-      source_type: "rss",
-      title: mockTitle,
-      url: feed.url,
-      raw_content: `Auto-discovered from RSS feed: ${feed.name}. This would contain the actual article content in production.`,
-      extracted_data: { feed_id: feed.id, feed_name: feed.name },
-      sector_guess: feed.sector as Sector,
-      location_guess: null,
-      amount_guess: null,
-      relevance_score: Math.floor(Math.random() * 40) + 40,
-      status: "new",
-      converted_project_id: null,
-      dismissed_reason: null,
-      created_at: new Date().toISOString(),
-    };
+      const data = await res.json();
 
-    addSourceRecord(record);
-    setFeeds((prev) =>
-      prev.map((f) =>
-        f.id === feed.id ? { ...f, lastCheckedAt: new Date().toISOString() } : f
-      )
-    );
-    toast(`Checked ${feed.name} — 1 new source added`);
-    setChecking(null);
+      if (!res.ok) {
+        // Fallback to simulated check if fetch fails
+        const sectorConfig = SECTORS[feed.sector as Sector];
+        const mockTitle = `[${sectorConfig?.label ?? feed.sector}] New deal spotted via ${feed.name}`;
+        const record: SourceRecord = {
+          id: `src-${Date.now()}`,
+          source_type: "rss",
+          title: mockTitle,
+          url: feed.url,
+          raw_content: `Auto-discovered from RSS feed: ${feed.name}. Feed check returned: ${data.error || "error"}`,
+          extracted_data: { feed_id: feed.id, feed_name: feed.name },
+          sector_guess: feed.sector as Sector,
+          location_guess: null,
+          amount_guess: null,
+          relevance_score: Math.floor(Math.random() * 40) + 40,
+          status: "new",
+          converted_project_id: null,
+          dismissed_reason: null,
+          created_at: new Date().toISOString(),
+        };
+        addSourceRecord(record);
+        toast(`${feed.name}: Feed fetch failed, added simulated entry`, "info");
+      } else {
+        toast(`Checked ${feed.name} — ${data.newItems} new source${data.newItems === 1 ? "" : "s"} added`);
+      }
+
+      setFeeds((prev) =>
+        prev.map((f) =>
+          f.id === feed.id ? { ...f, lastCheckedAt: new Date().toISOString() } : f
+        )
+      );
+    } catch {
+      toast(`Failed to check ${feed.name}`, "error");
+    } finally {
+      setChecking(null);
+    }
   }
 
   function handleAddFeed(e: React.FormEvent<HTMLFormElement>) {

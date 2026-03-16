@@ -75,37 +75,75 @@ export default function ComposeOutreachPage() {
     }
   }
 
-  function handleSend() {
+  async function handleSend() {
     if (!subject.trim()) {
       toast("Subject is required", "error");
       return;
     }
+
+    if (!selectedContact?.email) {
+      toast("Selected contact has no email address", "error");
+      return;
+    }
+
     setSending(true);
 
-    const outreach: Outreach = {
-      id: `out-${Date.now()}`,
-      contact_id: contactId || null,
-      project_id: projectId || null,
-      channel: "email",
-      direction: "outbound",
-      subject,
-      body,
-      template_id: null,
-      status: "sent",
-      scheduled_at: null,
-      sent_at: new Date().toISOString(),
-      sequence_position: null,
-      sequence_id: null,
-      compliance_approved: true,
-      compliance_approved_by: "system",
-      compliance_approved_at: new Date().toISOString(),
-      created_by: null,
-      created_at: new Date().toISOString(),
-    };
+    try {
+      // Send via API (Resend if configured, otherwise logs only)
+      const res = await fetch("/api/email/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: selectedContact.email,
+          subject,
+          body,
+          contactId: contactId || null,
+          projectId: projectId || null,
+        }),
+      });
 
-    addOutreach(outreach);
-    toast("Outreach sent and logged");
-    router.push("/outreach");
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast(data.error || "Send failed", "error");
+        setSending(false);
+        return;
+      }
+
+      // Also add to local state
+      const outreach: Outreach = {
+        id: `out-${Date.now()}`,
+        contact_id: contactId || null,
+        project_id: projectId || null,
+        channel: "email",
+        direction: "outbound",
+        subject,
+        body,
+        template_id: null,
+        status: "sent",
+        scheduled_at: null,
+        sent_at: new Date().toISOString(),
+        sequence_position: null,
+        sequence_id: null,
+        compliance_approved: true,
+        compliance_approved_by: "system",
+        compliance_approved_at: new Date().toISOString(),
+        created_by: null,
+        created_at: new Date().toISOString(),
+      };
+
+      addOutreach(outreach);
+
+      if (data.mock) {
+        toast("Email logged (Resend not configured — no email actually sent)");
+      } else {
+        toast("Email sent and logged to compliance");
+      }
+      router.push("/outreach");
+    } catch {
+      toast("Send failed — server error", "error");
+      setSending(false);
+    }
   }
 
   function handleSaveDraft() {

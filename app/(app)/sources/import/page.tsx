@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useToast } from "@/lib/store/ToastContext";
 import { SECTOR_LIST } from "@/lib/config/sectors";
 
 interface ParsedRow {
@@ -23,12 +24,16 @@ export default function CSVImportPage() {
   const [headers, setHeaders] = useState<string[]>([]);
   const [fileName, setFileName] = useState("");
   const [imported, setImported] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{ imported: number; failed: number } | null>(null);
+  const { toast } = useToast();
 
   function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     setFileName(file.name);
     setImported(false);
+    setImportResult(null);
 
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -53,9 +58,30 @@ export default function CSVImportPage() {
     reader.readAsText(file);
   }
 
-  function handleImport() {
-    console.log("Importing projects:", rows);
-    setImported(true);
+  async function handleImport() {
+    setImporting(true);
+    try {
+      const res = await fetch("/api/sources/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rows }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast(data.error || "Import failed", "error");
+        return;
+      }
+
+      setImported(true);
+      setImportResult({ imported: data.imported, failed: data.failed });
+      toast(`Imported ${data.imported} projects${data.failed > 0 ? ` (${data.failed} failed)` : ""}`);
+    } catch {
+      toast("Import failed — server error", "error");
+    } finally {
+      setImporting(false);
+    }
   }
 
   return (
@@ -102,13 +128,16 @@ export default function CSVImportPage() {
             {!imported && (
               <button
                 onClick={handleImport}
-                className="bg-brand text-white text-sm font-medium px-4 py-1.5 rounded-lg hover:bg-brand-hover transition-colors"
+                disabled={importing}
+                className="bg-brand text-white text-sm font-medium px-4 py-1.5 rounded-lg hover:bg-brand-hover transition-colors disabled:opacity-50"
               >
-                Import All
+                {importing ? "Importing..." : "Import All"}
               </button>
             )}
-            {imported && (
-              <span className="text-sm text-green-600 font-medium">Imported successfully</span>
+            {imported && importResult && (
+              <span className="text-sm text-green-600 font-medium">
+                ✓ {importResult.imported} imported{importResult.failed > 0 ? `, ${importResult.failed} failed` : ""}
+              </span>
             )}
           </div>
           <div className="overflow-x-auto">

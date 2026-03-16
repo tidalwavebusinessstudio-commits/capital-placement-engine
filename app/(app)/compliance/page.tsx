@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useData } from "@/lib/store/DataContext";
+import { useToast } from "@/lib/store/ToastContext";
 import Badge from "@/components/ui/Badge";
 
 const ACTION_LABELS: Record<string, string> = {
@@ -9,6 +10,7 @@ const ACTION_LABELS: Record<string, string> = {
   project_stage_changed: "Stage Changed",
   project_submitted: "Project Submitted",
   fee_agreement_drafted: "Fee Agreement",
+  firm_approval_granted: "Firm Approved",
 };
 
 const ACTION_COLORS: Record<string, "blue" | "green" | "amber" | "slate" | "violet" | "red"> = {
@@ -16,10 +18,13 @@ const ACTION_COLORS: Record<string, "blue" | "green" | "amber" | "slate" | "viol
   project_stage_changed: "slate",
   project_submitted: "violet",
   fee_agreement_drafted: "amber",
+  firm_approval_granted: "green",
 };
 
 export default function CompliancePage() {
-  const { complianceLog } = useData();
+  const { complianceLog, approveCompliance } = useData();
+  const { toast } = useToast();
+  const [approvingId, setApprovingId] = useState<string | null>(null);
 
   const logs = useMemo(
     () => [...complianceLog].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
@@ -28,6 +33,33 @@ export default function CompliancePage() {
 
   const pendingApproval = logs.filter((l) => l.firm_approval_required && !l.firm_approved);
   const approved = logs.filter((l) => l.firm_approval_required && l.firm_approved);
+
+  async function handleApprove(entryId: string) {
+    setApprovingId(entryId);
+    try {
+      const res = await fetch("/api/compliance/approve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ complianceEntryId: entryId, approvedBy: "Kevin Pham" }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        toast(data.error || "Approval failed", "error");
+        return;
+      }
+
+      // Update local state
+      approveCompliance(entryId, "Kevin Pham");
+      toast("Compliance entry approved");
+    } catch {
+      // Still approve locally even if API fails
+      approveCompliance(entryId, "Kevin Pham");
+      toast("Approved locally (API unavailable)");
+    } finally {
+      setApprovingId(null);
+    }
+  }
 
   return (
     <div>
@@ -55,8 +87,12 @@ export default function CompliancePage() {
                   {entry.details.project as string} — {entry.disclosure_text?.slice(0, 80)}...
                 </p>
               </div>
-              <button className="text-xs bg-amber-600 text-white px-3 py-1 rounded-lg hover:bg-amber-700 transition-colors">
-                Review
+              <button
+                onClick={() => handleApprove(entry.id)}
+                disabled={approvingId === entry.id}
+                className="text-xs bg-amber-600 text-white px-3 py-1 rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50"
+              >
+                {approvingId === entry.id ? "Approving..." : "Review & Approve"}
               </button>
             </div>
           ))}

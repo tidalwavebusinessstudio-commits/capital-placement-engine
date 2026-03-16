@@ -8,6 +8,7 @@ import Badge from "@/components/ui/Badge";
 import ScoreGauge from "@/components/ui/ScoreGauge";
 import CapitalGapBar from "@/components/ui/CapitalGapBar";
 import type { Sector, ProjectStage } from "@/lib/types";
+import ExportPdfButton from "@/components/ui/ExportPdfButton";
 
 const REL_COLORS: Record<string, string> = {
   cold: "slate", warm: "amber", hot: "red", active: "green", inactive: "slate",
@@ -35,6 +36,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
           <h1 className="text-2xl font-bold text-text-primary">{project.name}</h1>
           <Badge label={stageCfg.label} color={stageCfg.color} size="md" />
           <ScoreGauge score={project.priority_score} />
+          <ExportPdfButton projectId={id} />
         </div>
         {project.description && (
           <p className="text-sm text-text-secondary mt-2 max-w-3xl">{project.description}</p>

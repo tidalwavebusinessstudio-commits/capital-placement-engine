@@ -42,7 +42,8 @@ type Action =
   | { type: "UPDATE_PROJECT_STAGE"; payload: { id: string; stage: ProjectStage } }
   | { type: "UPDATE_SOURCE_STATUS"; payload: { id: string; status: SourceRecord["status"]; converted_project_id?: string } }
   | { type: "ADD_ACTIVITY"; payload: ActivityLogEntry }
-  | { type: "ADD_COMPLIANCE_ENTRY"; payload: ComplianceLogEntry };
+  | { type: "ADD_COMPLIANCE_ENTRY"; payload: ComplianceLogEntry }
+  | { type: "APPROVE_COMPLIANCE"; payload: { id: string; approvedBy: string } };
 
 function reducer(state: DataState, action: Action): DataState {
   switch (action.type) {
@@ -89,6 +90,20 @@ function reducer(state: DataState, action: Action): DataState {
       return { ...state, activity: [action.payload, ...state.activity] };
     case "ADD_COMPLIANCE_ENTRY":
       return { ...state, complianceLog: [action.payload, ...state.complianceLog] };
+    case "APPROVE_COMPLIANCE":
+      return {
+        ...state,
+        complianceLog: state.complianceLog.map((entry) =>
+          entry.id === action.payload.id
+            ? {
+                ...entry,
+                firm_approved: true,
+                firm_approved_by: action.payload.approvedBy,
+                firm_approved_at: new Date().toISOString(),
+              }
+            : entry
+        ),
+      };
     default:
       return state;
   }
@@ -113,6 +128,7 @@ interface DataContextValue extends DataState {
   getProject: (id: string) => Project | undefined;
   getSourceRecord: (id: string) => SourceRecord | undefined;
   getNewsletter: (id: string) => Newsletter | undefined;
+  approveCompliance: (id: string, approvedBy: string) => void;
   getContactsForOrg: (orgId: string) => Contact[];
   getProjectsForOrg: (orgId: string) => Project[];
   getOutreachForContact: (contactId: string) => Outreach[];
@@ -225,6 +241,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
     logActivity("source_status_changed", "source_record", id, { status, converted_project_id: convertedProjectId });
   }, [logActivity]);
 
+  const approveCompliance = useCallback((id: string, approvedBy: string) => {
+    dispatch({ type: "APPROVE_COMPLIANCE", payload: { id, approvedBy } });
+    logActivity("compliance_approved", "compliance_log", id, { approved_by: approvedBy });
+  }, [logActivity]);
+
   // Getters
   const getOrg = useCallback((id: string) => state.organizations.find((o) => o.id === id), [state.organizations]);
   const getContact = useCallback((id: string) => state.contacts.find((c) => c.id === id), [state.contacts]);
@@ -248,6 +269,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     addNewsletter,
     updateNewsletter,
     updateProjectStage,
+    approveCompliance,
     updateSourceStatus,
     getOrg,
     getContact,

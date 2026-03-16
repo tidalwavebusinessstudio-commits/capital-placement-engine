@@ -7,6 +7,11 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.next({ request });
   }
 
+  // Dev bypass — skip auth redirect when DEV_BYPASS_AUTH is set
+  if (process.env.DEV_BYPASS_AUTH === "true") {
+    return NextResponse.next({ request });
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
