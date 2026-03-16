@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getMockOrg, getMockContactsForOrg, getMockProjectsForOrg } from "@/lib/mock-data";
+import { getOrganization, getContactsForOrg, getProjectsForOrg } from "@/lib/supabase/db";
 import { getSectorConfig } from "@/lib/config/sectors";
 import { getStageConfig } from "@/lib/config/stages";
 import { formatCurrency, formatDate } from "@/lib/utils/format";
@@ -19,11 +19,11 @@ const REL_COLORS: Record<string, string> = {
 
 export default async function OrgDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const org = getMockOrg(id);
+  const org = await getOrganization(id);
   if (!org) notFound();
 
-  const contacts = getMockContactsForOrg(org.id);
-  const projects = getMockProjectsForOrg(org.id);
+  const contacts = await getContactsForOrg(org.id);
+  const projects = await getProjectsForOrg(org.id);
   const sectorCfg = org.sector ? getSectorConfig(org.sector as Sector) : null;
 
   return (

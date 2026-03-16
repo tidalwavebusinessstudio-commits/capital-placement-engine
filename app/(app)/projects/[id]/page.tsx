@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getMockProject, getMockOrg, getMockContactsForOrg } from "@/lib/mock-data";
+import { getProject, getOrganization, getContactsForOrg } from "@/lib/supabase/db";
 import { getSectorConfig } from "@/lib/config/sectors";
 import { getStageConfig, PIPELINE_STAGES } from "@/lib/config/stages";
 import { formatCurrency, formatCurrencyFull, formatDate, formatPercent } from "@/lib/utils/format";
@@ -16,11 +16,11 @@ const REL_COLORS: Record<string, string> = {
 
 export default async function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const project = getMockProject(id);
+  const project = await getProject(id);
   if (!project) notFound();
 
-  const org = project.organization_id ? getMockOrg(project.organization_id) : null;
-  const contacts = org ? getMockContactsForOrg(org.id) : [];
+  const org = project.organization_id ? await getOrganization(project.organization_id) : null;
+  const contacts = org ? await getContactsForOrg(org.id) : [];
   const sectorCfg = getSectorConfig(project.sector as Sector);
   const stageCfg = getStageConfig(project.stage as ProjectStage);
   const sb = project.score_breakdown;

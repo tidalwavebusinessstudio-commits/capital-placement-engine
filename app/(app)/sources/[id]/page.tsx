@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { MOCK_SOURCE_RECORDS } from "@/lib/mock-data-extended";
+import { getSourceRecord } from "@/lib/supabase/db";
 import { SECTORS } from "@/lib/config/sectors";
 import { formatCurrency } from "@/lib/utils/format";
 import Badge from "@/components/ui/Badge";
@@ -15,7 +15,7 @@ const STATUS_COLORS: Record<string, "blue" | "green" | "amber" | "slate"> = {
 
 export default async function SourceDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const source = MOCK_SOURCE_RECORDS.find((s) => s.id === id);
+  const source = await getSourceRecord(id);
   if (!source) return notFound();
 
   const sectorConfig = source.sector_guess ? SECTORS[source.sector_guess] : null;

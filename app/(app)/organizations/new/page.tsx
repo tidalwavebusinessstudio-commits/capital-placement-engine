@@ -23,7 +23,7 @@ export default function NewOrganizationPage() {
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setSaving(true);
     const form = new FormData(e.currentTarget);
@@ -49,7 +49,7 @@ export default function NewOrganizationPage() {
       updated_at: new Date().toISOString(),
     };
 
-    addOrganization(org);
+    await addOrganization(org);
     toast(`${org.name} created`);
     router.push("/organizations");
   }

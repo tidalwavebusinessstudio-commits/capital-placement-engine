@@ -1,5 +1,15 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getContacts } from "@/lib/supabase/db";
+
+export async function GET() {
+  try {
+    const data = await getContacts();
+    return NextResponse.json(data);
+  } catch {
+    return NextResponse.json([], { status: 500 });
+  }
+}
 
 export async function POST(request: Request) {
   try {

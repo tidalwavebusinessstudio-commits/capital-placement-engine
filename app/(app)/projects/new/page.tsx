@@ -30,7 +30,7 @@ export default function NewProjectPage() {
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setSaving(true);
     const form = new FormData(e.currentTarget);
@@ -98,7 +98,7 @@ export default function NewProjectPage() {
       updated_at: new Date().toISOString(),
     };
 
-    addProject(project);
+    await addProject(project);
     toast(`${project.name} created — Score: ${project.priority_score}`);
     router.push("/projects");
   }

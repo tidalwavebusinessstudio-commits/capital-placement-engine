@@ -20,7 +20,7 @@ export default function NewContactPage() {
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setSaving(true);
     const form = new FormData(e.currentTarget);
@@ -45,7 +45,7 @@ export default function NewContactPage() {
       updated_at: new Date().toISOString(),
     };
 
-    addContact(contact);
+    await addContact(contact);
     toast(`${contact.first_name} ${contact.last_name} added`);
     router.push("/contacts");
   }

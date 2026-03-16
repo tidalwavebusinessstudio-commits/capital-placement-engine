@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getMockContact, getMockOrg, getMockProjectsForOrg } from "@/lib/mock-data";
+import { getContact, getOrganization, getProjectsForOrg } from "@/lib/supabase/db";
 import { formatDate } from "@/lib/utils/format";
 import Badge from "@/components/ui/Badge";
 
@@ -10,11 +10,11 @@ const REL_COLORS: Record<string, string> = {
 
 export default async function ContactDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const contact = getMockContact(id);
+  const contact = await getContact(id);
   if (!contact) notFound();
 
-  const org = contact.organization_id ? getMockOrg(contact.organization_id) : null;
-  const relatedProjects = org ? getMockProjectsForOrg(org.id) : [];
+  const org = contact.organization_id ? await getOrganization(contact.organization_id) : null;
+  const relatedProjects = org ? await getProjectsForOrg(org.id) : [];
 
   return (
     <div className="space-y-6">

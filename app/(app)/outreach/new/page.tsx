@@ -13,7 +13,7 @@ export default function NewOutreachPage() {
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setSaving(true);
     const form = new FormData(e.currentTarget);
@@ -39,7 +39,7 @@ export default function NewOutreachPage() {
       created_at: new Date().toISOString(),
     };
 
-    addOutreach(outreach);
+    await addOutreach(outreach);
     toast("Outreach logged");
     router.push("/outreach");
   }
