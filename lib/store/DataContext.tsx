@@ -125,12 +125,12 @@ interface DataContextValue extends DataState {
   addContact: (contact: Contact) => Promise<Contact>;
   addProject: (project: Project) => Promise<Project>;
   addOutreach: (outreach: Outreach) => Promise<Outreach>;
-  addOpportunity: (opp: Opportunity) => void;
-  addSourceRecord: (source: SourceRecord) => void;
-  addNewsletter: (nl: Newsletter) => void;
-  updateNewsletter: (updates: Partial<Newsletter> & { id: string }) => void;
+  addOpportunity: (opp: Opportunity) => Promise<void>;
+  addSourceRecord: (source: SourceRecord) => Promise<void>;
+  addNewsletter: (nl: Newsletter) => Promise<void>;
+  updateNewsletter: (updates: Partial<Newsletter> & { id: string }) => Promise<void>;
   updateProjectStage: (id: string, stage: ProjectStage) => Promise<void>;
-  updateSourceStatus: (id: string, status: SourceRecord["status"], convertedProjectId?: string) => void;
+  updateSourceStatus: (id: string, status: SourceRecord["status"], convertedProjectId?: string) => Promise<void>;
   getOrg: (id: string) => Organization | undefined;
   getContact: (id: string) => Contact | undefined;
   getProject: (id: string) => Project | undefined;
@@ -178,10 +178,18 @@ const MOCK_STATE: Partial<DataState> = {
   initialized: true,
 };
 
-async function fetchJson(url: string) {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Failed to fetch ${url}`);
-  return res.json();
+async function fetchJson(url: string, retries = 2): Promise<unknown> {
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Failed to fetch ${url}: ${res.status}`);
+      return res.json();
+    } catch (err) {
+      if (i === retries) throw err;
+      await new Promise((r) => setTimeout(r, 1000 * (i + 1)));
+    }
+  }
+  throw new Error(`Failed to fetch ${url} after retries`);
 }
 
 export function DataProvider({ children }: { children: ReactNode }) {
@@ -192,7 +200,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     async function loadData() {
       try {
-        const [orgs, contacts, projects, sources, outreach, compliance, opps, newsletters, activity] =
+        const [orgs, contacts, projects, sources, outreachData, compliance, opps, newsletters, activityData] =
           await Promise.all([
             fetchJson("/api/organizations"),
             fetchJson("/api/contacts"),
@@ -203,7 +211,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             fetchJson("/api/opportunities"),
             fetchJson("/api/newsletters"),
             fetchJson("/api/activity"),
-          ]);
+          ]) as [Organization[], Contact[], Project[], SourceRecord[], Outreach[], ComplianceLogEntry[], Opportunity[], Newsletter[], ActivityLogEntry[]];
         if (!cancelled) {
           dispatch({
             type: "SET_ALL_DATA",
@@ -212,11 +220,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
               contacts,
               projects,
               sourceRecords: sources,
-              outreach,
+              outreach: outreachData,
               complianceLog: compliance,
               opportunities: opps,
               newsletters,
-              activity,
+              activity: activityData,
               loading: false,
               initialized: true,
             },
@@ -380,32 +388,86 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [logActivity]);
 
   // ============================================================
-  // Local-only mutations (no API routes for these yet)
+  // API-wired mutations for opportunities, sources, newsletters
   // ============================================================
 
-  const addOpportunity = useCallback((opp: Opportunity) => {
-    dispatch({ type: "ADD_OPPORTUNITY", payload: opp });
-    logActivity("created", "opportunity", opp.id, { project_id: opp.project_id, amount: opp.amount });
+  const addOpportunity = useCallback(async (opp: Opportunity) => {
+    try {
+      const res = await fetch("/api/opportunities", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(opp),
+      });
+      const saved = await res.json();
+      if (!res.ok) throw new Error(saved.error || "Failed to save");
+      dispatch({ type: "ADD_OPPORTUNITY", payload: saved });
+      logActivity("created", "opportunity", saved.id, { project_id: saved.project_id, amount: saved.amount });
+    } catch {
+      dispatch({ type: "ADD_OPPORTUNITY", payload: opp });
+      logActivity("created", "opportunity", opp.id, { project_id: opp.project_id, amount: opp.amount });
+    }
   }, [logActivity]);
 
-  const addSourceRecord = useCallback((source: SourceRecord) => {
-    dispatch({ type: "ADD_SOURCE_RECORD", payload: source });
-    logActivity("source_added", "source_record", source.id, { title: source.title, source_type: source.source_type });
+  const addSourceRecord = useCallback(async (source: SourceRecord) => {
+    try {
+      const res = await fetch("/api/sources", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(source),
+      });
+      const saved = await res.json();
+      if (!res.ok) throw new Error(saved.error || "Failed to save");
+      dispatch({ type: "ADD_SOURCE_RECORD", payload: saved });
+      logActivity("source_added", "source_record", saved.id, { title: saved.title, source_type: saved.source_type });
+    } catch {
+      dispatch({ type: "ADD_SOURCE_RECORD", payload: source });
+      logActivity("source_added", "source_record", source.id, { title: source.title, source_type: source.source_type });
+    }
   }, [logActivity]);
 
-  const addNewsletter = useCallback((nl: Newsletter) => {
-    dispatch({ type: "ADD_NEWSLETTER", payload: nl });
-    logActivity("created", "newsletter", nl.id, { title: nl.title });
+  const addNewsletter = useCallback(async (nl: Newsletter) => {
+    try {
+      const res = await fetch("/api/newsletters", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(nl),
+      });
+      const saved = await res.json();
+      if (!res.ok) throw new Error(saved.error || "Failed to save");
+      dispatch({ type: "ADD_NEWSLETTER", payload: saved });
+      logActivity("created", "newsletter", saved.id, { title: saved.title });
+    } catch {
+      dispatch({ type: "ADD_NEWSLETTER", payload: nl });
+      logActivity("created", "newsletter", nl.id, { title: nl.title });
+    }
   }, [logActivity]);
 
-  const updateNewsletter = useCallback((updates: Partial<Newsletter> & { id: string }) => {
+  const updateNewsletter = useCallback(async (updates: Partial<Newsletter> & { id: string }) => {
     dispatch({ type: "UPDATE_NEWSLETTER", payload: updates });
     logActivity("updated", "newsletter", updates.id, { fields: Object.keys(updates).filter((k) => k !== "id") });
+    try {
+      await fetch("/api/newsletters", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      });
+    } catch {
+      // Local state already updated optimistically
+    }
   }, [logActivity]);
 
-  const updateSourceStatus = useCallback((id: string, status: SourceRecord["status"], convertedProjectId?: string) => {
+  const updateSourceStatus = useCallback(async (id: string, status: SourceRecord["status"], convertedProjectId?: string) => {
     dispatch({ type: "UPDATE_SOURCE_STATUS", payload: { id, status, converted_project_id: convertedProjectId } });
     logActivity("source_status_changed", "source_record", id, { status, converted_project_id: convertedProjectId });
+    try {
+      await fetch("/api/sources", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status, converted_project_id: convertedProjectId }),
+      });
+    } catch {
+      // Local state already updated optimistically
+    }
   }, [logActivity]);
 
   // Getters

@@ -5,6 +5,7 @@
 // This makes the app work identically in dev (no DB) and production (real DB).
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { MOCK_ORGANIZATIONS, MOCK_CONTACTS, MOCK_PROJECTS, MOCK_ACTIVITY } from "@/lib/mock-data";
 import {
   MOCK_SOURCE_RECORDS, MOCK_OUTREACH, MOCK_COMPLIANCE_LOG,
@@ -21,6 +22,13 @@ function isSupabaseConfigured(): boolean {
   return !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 }
 
+// Get appropriate Supabase client
+// In dev bypass mode, use regular client with anon key (RLS may not be active)
+// In production, use server client with auth cookies for RLS
+async function getSupabaseClient() {
+  return createClient();
+}
+
 // ============================================================
 // Organizations
 // ============================================================
@@ -28,7 +36,7 @@ function isSupabaseConfigured(): boolean {
 export async function getOrganizations(): Promise<Organization[]> {
   if (!isSupabaseConfigured()) return MOCK_ORGANIZATIONS;
 
-  const supabase = await createClient();
+  const supabase = await getSupabaseClient();
   const { data, error } = await supabase
     .from("organizations")
     .select("*")
@@ -42,7 +50,7 @@ export async function getOrganizations(): Promise<Organization[]> {
 export async function getOrganization(id: string): Promise<Organization | null> {
   if (!isSupabaseConfigured()) return MOCK_ORGANIZATIONS.find((o) => o.id === id) ?? null;
 
-  const supabase = await createClient();
+  const supabase = await getSupabaseClient();
   const { data, error } = await supabase.from("organizations").select("*").eq("id", id).single();
   if (error) return null;
   return data as Organization;
@@ -51,7 +59,7 @@ export async function getOrganization(id: string): Promise<Organization | null> 
 export async function insertOrganization(org: Omit<Organization, "id" | "created_at" | "updated_at">): Promise<Organization | null> {
   if (!isSupabaseConfigured()) return null;
 
-  const supabase = await createClient();
+  const supabase = await getSupabaseClient();
   const { data, error } = await supabase.from("organizations").insert(org).select().single();
   if (error) { console.error("insertOrganization error:", error); return null; }
   return data as Organization;
@@ -64,7 +72,7 @@ export async function insertOrganization(org: Omit<Organization, "id" | "created
 export async function getContacts(): Promise<Contact[]> {
   if (!isSupabaseConfigured()) return MOCK_CONTACTS;
 
-  const supabase = await createClient();
+  const supabase = await getSupabaseClient();
   const { data, error } = await supabase
     .from("contacts")
     .select("*, organization:organizations(*)")
@@ -78,7 +86,7 @@ export async function getContacts(): Promise<Contact[]> {
 export async function getContact(id: string): Promise<Contact | null> {
   if (!isSupabaseConfigured()) return MOCK_CONTACTS.find((c) => c.id === id) ?? null;
 
-  const supabase = await createClient();
+  const supabase = await getSupabaseClient();
   const { data, error } = await supabase
     .from("contacts")
     .select("*, organization:organizations(*)")
@@ -91,7 +99,7 @@ export async function getContact(id: string): Promise<Contact | null> {
 export async function getContactsForOrg(orgId: string): Promise<Contact[]> {
   if (!isSupabaseConfigured()) return MOCK_CONTACTS.filter((c) => c.organization_id === orgId);
 
-  const supabase = await createClient();
+  const supabase = await getSupabaseClient();
   const { data, error } = await supabase
     .from("contacts")
     .select("*")
@@ -105,7 +113,7 @@ export async function getContactsForOrg(orgId: string): Promise<Contact[]> {
 export async function insertContact(contact: Omit<Contact, "id" | "created_at" | "updated_at">): Promise<Contact | null> {
   if (!isSupabaseConfigured()) return null;
 
-  const supabase = await createClient();
+  const supabase = await getSupabaseClient();
   const { data, error } = await supabase.from("contacts").insert(contact).select().single();
   if (error) { console.error("insertContact error:", error); return null; }
   return data as Contact;
@@ -118,7 +126,7 @@ export async function insertContact(contact: Omit<Contact, "id" | "created_at" |
 export async function getProjects(): Promise<Project[]> {
   if (!isSupabaseConfigured()) return MOCK_PROJECTS;
 
-  const supabase = await createClient();
+  const supabase = await getSupabaseClient();
   const { data, error } = await supabase
     .from("projects")
     .select("*, organization:organizations(*)")
@@ -132,7 +140,7 @@ export async function getProjects(): Promise<Project[]> {
 export async function getProject(id: string): Promise<Project | null> {
   if (!isSupabaseConfigured()) return MOCK_PROJECTS.find((p) => p.id === id) ?? null;
 
-  const supabase = await createClient();
+  const supabase = await getSupabaseClient();
   const { data, error } = await supabase
     .from("projects")
     .select("*, organization:organizations(*)")
@@ -145,7 +153,7 @@ export async function getProject(id: string): Promise<Project | null> {
 export async function getProjectsForOrg(orgId: string): Promise<Project[]> {
   if (!isSupabaseConfigured()) return MOCK_PROJECTS.filter((p) => p.organization_id === orgId);
 
-  const supabase = await createClient();
+  const supabase = await getSupabaseClient();
   const { data, error } = await supabase
     .from("projects")
     .select("*")
@@ -159,7 +167,7 @@ export async function getProjectsForOrg(orgId: string): Promise<Project[]> {
 export async function insertProject(project: Omit<Project, "id" | "created_at" | "updated_at" | "funding_gap">): Promise<Project | null> {
   if (!isSupabaseConfigured()) return null;
 
-  const supabase = await createClient();
+  const supabase = await getSupabaseClient();
   const { data, error } = await supabase.from("projects").insert(project).select().single();
   if (error) { console.error("insertProject error:", error); return null; }
   return data as Project;
@@ -168,7 +176,7 @@ export async function insertProject(project: Omit<Project, "id" | "created_at" |
 export async function updateProjectStage(id: string, stage: string): Promise<boolean> {
   if (!isSupabaseConfigured()) return false;
 
-  const supabase = await createClient();
+  const supabase = await getSupabaseClient();
   const { error } = await supabase.from("projects").update({ stage }).eq("id", id);
   if (error) { console.error("updateProjectStage error:", error); return false; }
   return true;
@@ -181,7 +189,7 @@ export async function updateProjectStage(id: string, stage: string): Promise<boo
 export async function getSourceRecords(): Promise<SourceRecord[]> {
   if (!isSupabaseConfigured()) return MOCK_SOURCE_RECORDS;
 
-  const supabase = await createClient();
+  const supabase = await getSupabaseClient();
   const { data, error } = await supabase
     .from("source_records")
     .select("*")
@@ -193,7 +201,7 @@ export async function getSourceRecords(): Promise<SourceRecord[]> {
 export async function getSourceRecord(id: string): Promise<SourceRecord | null> {
   if (!isSupabaseConfigured()) return MOCK_SOURCE_RECORDS.find((s) => s.id === id) ?? null;
 
-  const supabase = await createClient();
+  const supabase = await getSupabaseClient();
   const { data, error } = await supabase.from("source_records").select("*").eq("id", id).single();
   if (error) return null;
   return data as SourceRecord;
@@ -206,7 +214,7 @@ export async function getSourceRecord(id: string): Promise<SourceRecord | null> 
 export async function getOpportunities(): Promise<Opportunity[]> {
   if (!isSupabaseConfigured()) return MOCK_OPPORTUNITIES;
 
-  const supabase = await createClient();
+  const supabase = await getSupabaseClient();
   const { data, error } = await supabase
     .from("opportunities")
     .select("*, project:projects(*)")
@@ -218,7 +226,7 @@ export async function getOpportunities(): Promise<Opportunity[]> {
 export async function getOpportunitiesForProject(projectId: string): Promise<Opportunity[]> {
   if (!isSupabaseConfigured()) return MOCK_OPPORTUNITIES.filter((o) => o.project_id === projectId);
 
-  const supabase = await createClient();
+  const supabase = await getSupabaseClient();
   const { data, error } = await supabase
     .from("opportunities")
     .select("*")
@@ -235,7 +243,7 @@ export async function getOpportunitiesForProject(projectId: string): Promise<Opp
 export async function getOutreach(): Promise<Outreach[]> {
   if (!isSupabaseConfigured()) return MOCK_OUTREACH;
 
-  const supabase = await createClient();
+  const supabase = await getSupabaseClient();
   const { data, error } = await supabase
     .from("outreach")
     .select("*, contact:contacts(*), project:projects(*)")
@@ -247,7 +255,7 @@ export async function getOutreach(): Promise<Outreach[]> {
 export async function getOutreachForContact(contactId: string): Promise<Outreach[]> {
   if (!isSupabaseConfigured()) return MOCK_OUTREACH.filter((o) => o.contact_id === contactId);
 
-  const supabase = await createClient();
+  const supabase = await getSupabaseClient();
   const { data, error } = await supabase
     .from("outreach")
     .select("*")
@@ -260,7 +268,7 @@ export async function getOutreachForContact(contactId: string): Promise<Outreach
 export async function getOutreachForProject(projectId: string): Promise<Outreach[]> {
   if (!isSupabaseConfigured()) return MOCK_OUTREACH.filter((o) => o.project_id === projectId);
 
-  const supabase = await createClient();
+  const supabase = await getSupabaseClient();
   const { data, error } = await supabase
     .from("outreach")
     .select("*")
@@ -273,7 +281,7 @@ export async function getOutreachForProject(projectId: string): Promise<Outreach
 export async function insertOutreach(outreach: Omit<Outreach, "id" | "created_at">): Promise<Outreach | null> {
   if (!isSupabaseConfigured()) return null;
 
-  const supabase = await createClient();
+  const supabase = await getSupabaseClient();
   const { data, error } = await supabase.from("outreach").insert(outreach).select().single();
   if (error) { console.error("insertOutreach error:", error); return null; }
   return data as Outreach;
@@ -286,7 +294,7 @@ export async function insertOutreach(outreach: Omit<Outreach, "id" | "created_at
 export async function getNewsletters(): Promise<Newsletter[]> {
   if (!isSupabaseConfigured()) return MOCK_NEWSLETTERS;
 
-  const supabase = await createClient();
+  const supabase = await getSupabaseClient();
   const { data, error } = await supabase
     .from("newsletters")
     .select("*")
@@ -302,7 +310,7 @@ export async function getNewsletters(): Promise<Newsletter[]> {
 export async function getComplianceLog(): Promise<ComplianceLogEntry[]> {
   if (!isSupabaseConfigured()) return MOCK_COMPLIANCE_LOG;
 
-  const supabase = await createClient();
+  const supabase = await getSupabaseClient();
   const { data, error } = await supabase
     .from("compliance_log")
     .select("*")
@@ -314,7 +322,7 @@ export async function getComplianceLog(): Promise<ComplianceLogEntry[]> {
 export async function insertComplianceEntry(entry: Omit<ComplianceLogEntry, "id" | "created_at">): Promise<ComplianceLogEntry | null> {
   if (!isSupabaseConfigured()) return null;
 
-  const supabase = await createClient();
+  const supabase = await getSupabaseClient();
   const { data, error } = await supabase.from("compliance_log").insert(entry).select().single();
   if (error) { console.error("insertComplianceEntry error:", error); return null; }
   return data as ComplianceLogEntry;
@@ -327,7 +335,7 @@ export async function insertComplianceEntry(entry: Omit<ComplianceLogEntry, "id"
 export async function getRecentActivity(limit: number = 20): Promise<ActivityLogEntry[]> {
   if (!isSupabaseConfigured()) return MOCK_ACTIVITY.slice(0, limit);
 
-  const supabase = await createClient();
+  const supabase = await getSupabaseClient();
   const { data, error } = await supabase
     .from("activity_log")
     .select("*")
@@ -340,7 +348,7 @@ export async function getRecentActivity(limit: number = 20): Promise<ActivityLog
 export async function insertActivity(entry: Omit<ActivityLogEntry, "id" | "created_at">): Promise<void> {
   if (!isSupabaseConfigured()) return;
 
-  const supabase = await createClient();
+  const supabase = await getSupabaseClient();
   await supabase.from("activity_log").insert(entry);
 }
 

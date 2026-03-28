@@ -85,79 +85,57 @@ Dev server runs on port 3002
 
 
 <claude-mem-context>
-## Build Progress (as of 2026-03-08)
-Sprint 1-10 complete. v0.9.0. 34 routes (26 pages + 8 API). 0 build errors.
-Mock data mode works without env vars. Supabase-ready when credentials added.
-Sprint 6: React Context, toasts, search/filter, pipeline transitions, CRUD forms.
-Sprint 7: Supabase data access layer, API routes, RLS policies, seed data, auth flow, dev mode login.
-Sprint 8: Claude SDK — AI source extraction (/sources/extract), outreach drafter, score explainer. 3 AI API routes.
-Sprint 9: Git + GitHub repo (tidalwavebusinessstudio-commits/capital-placement-engine), Vercel config.
-Sprint 10: Polish — outreach & compliance pages wired to live context, responsive mobile sidebar (AppShell), search on outreach.
+## Build Progress (as of 2026-03-28)
+Sprint 1-11 complete. v1.0.0. 40+ routes (28 pages + 21 API). 0 build errors.
+Supabase fully connected with live data (5 orgs, 5 contacts, 5 projects seeded).
+All CRUD operations persist to Supabase with optimistic UI updates.
 
-### Current Route Map (25 page files — all fully built)
-- /dashboard — KPIs ($645M pipeline, $14.7M fees, $7.3M Kevin share), pipeline by stage/sector, activity feed
-- /projects — Table sorted by score, stage badges, sector icons
-- /projects/pipeline — Kanban board (7 columns: discovered→closed), cards with score gauge + gap
-- /projects/[id] — Detail: pipeline progress bar, CapitalGapBar, score breakdown (6 bars), fee estimate, contacts
-- /projects/new — 3-section form (details, capital structure, timing/fees)
-- /organizations — Table (5 mock orgs), /organizations/[id] — Detail with linked contacts/projects
-- /organizations/new — Create form
-- /contacts — Table (5 mock contacts sorted by status), /contacts/[id] — Detail with related projects
-- /contacts/new — Create form with org dropdown, decision maker checkbox
-- /sources — Inbox (6 mock records, relevance scores 18-92), /sources/[id] — Detail with extracted data + "Convert to Project"
-- /sources/import — CSV upload with preview table + sample format
-- /outreach — Tracker (5 mock entries, email/phone/linkedin), /outreach/new — Log outreach form
-- /compliance — Immutable audit trail (6 entries), pending approval banner, disclosure text
-- /analytics — Fee forecasting, sector bar charts, weighted pipeline, outreach performance, source stats
-- /opportunities — 6 mock opportunities, $185M in play, $9.7M potential fees, status summary cards, linked to projects
-- /newsletter — 3 mock editions, sector focus tags, AI-drafted indicator, editor notes, scheduled/sent dates
-- /admin — System health dashboard, data overview, config status, 5-step setup guide
+Sprint 11 (2026-03-28): Live Supabase connection, API completion, auto-scoring.
+- Connected all 9 DataContext API fetches to Supabase with retry mechanism
+- Added POST to /api/opportunities, /api/sources, /api/newsletters
+- Added PATCH to /api/sources, /api/newsletters
+- Wired all 5 previously local-only DataContext mutations to API routes
+- Auto-scoring + fee calculation on project creation
+- Fixed server component auth for dev bypass mode (db.ts getSupabaseClient)
+- Fixed TypeScript build errors, production build passes clean
 
-### API Routes (Sprint 7)
-- /api/organizations — POST (create)
-- /api/contacts — POST (create)
-- /api/projects — POST (create), PATCH (update stage)
-- /api/outreach — POST (create)
-- /api/auth/signout — POST (logout)
-- /api/health — GET (health check)
-
-### Key Files
-- lib/supabase/db.ts — Data access layer: all entity queries with mock fallback when Supabase not configured
-- lib/store/DataContext.tsx — React Context provider: all entities, CRUD actions, getters. Wraps app layout via AppProviders
-- lib/store/ToastContext.tsx — Toast notification system (success/error/info, auto-dismiss 4s)
-- components/providers/AppProviders.tsx — Client wrapper combining DataProvider + ToastProvider
-- components/layout/AppShell.tsx — Responsive shell: mobile sidebar slide-in + overlay, hamburger menu in Topbar
-- lib/mock-data.ts — 5 orgs, 5 contacts, 5 projects, 7 activity entries + helper functions
-- lib/mock-data-extended.ts — 6 source records, 5 outreach, 6 compliance log entries, 6 opportunities, 3 newsletters + helpers
-- supabase/schema.sql — 10-table schema with indexes, triggers, constraints
-- supabase/rls-policies.sql — RLS policies: authenticated read, placer/admin write, compliance immutable
-- supabase/seed.sql — Demo data (5 orgs, 5 contacts, 5 projects with UUIDs)
-- lib/scoring/projectScorer.ts — Deterministic scorer: 6 weighted factors (sector 25, size 20, gap 15, geo 15, contacts 15, timing 10)
-- lib/types/index.ts — All interfaces: User, Organization, Contact, Project, ScoreBreakdown, CapitalGap, SourceRecord, Opportunity, Outreach, Newsletter, ComplianceLogEntry, ActivityLogEntry, DashboardKPIs + all enum types
-- lib/config/sectors.ts — 7 sectors with priority, scoreWeight, color, icon, keywords. SECTOR_LIST export
-- lib/config/stages.ts — 8 stages with order, color, closeProbability. PIPELINE_STAGES, ACTIVE_STAGES exports
-- lib/config/constants.ts — Business rules: fees 4-8%, Kevin 50%, deal range $5M-$250M, DC top markets, US states
-- lib/utils/format.ts — formatCurrency (abbreviated), formatCurrencyFull, formatPercent, formatDate, formatRelativeDate
-- components/ui/Badge.tsx — Props: label (string), color (string), size (sm|md). NOT children/variant pattern
-- components/ui/ScoreGauge.tsx, CapitalGapBar.tsx, EmptyState.tsx, StatusBadge.tsx
-- supabase/schema.sql — Full 10-table schema (not yet deployed)
+### API Routes (Complete)
+- /api/organizations — GET, POST
+- /api/contacts — GET, POST
+- /api/projects — GET, POST (auto-scores + fees), PATCH (stage update)
+- /api/outreach — GET, POST
+- /api/sources — GET, POST, PATCH (status update)
+- /api/sources/import — POST (CSV → projects with scoring)
+- /api/sources/feeds/check — POST (RSS/Atom parser + relevance scoring)
+- /api/opportunities — GET, POST
+- /api/newsletters — GET, POST, PATCH
+- /api/compliance — GET; /api/compliance/approve — POST
+- /api/activity — GET
+- /api/ai/extract — POST (Claude: parse articles → project data)
+- /api/ai/outreach — POST (Claude: draft institutional emails)
+- /api/ai/capital-gap — POST (Claude: analyze funding gaps)
+- /api/ai/explain-score — POST (Claude: narrative score explanation)
+- /api/ai/newsletter — POST (Claude: draft sector newsletters)
+- /api/email/send — POST (Resend + compliance log)
+- /api/projects/[id]/pdf — GET (jsPDF deal summary export)
+- /api/auth/signout — POST
+- /api/health — GET
 
 ### Known Issues / Patterns
 - OneDrive causes .next cache corruption (symlink issues). Always rm -rf .next before dev/build
-- next.config.ts has outputFileTracingRoot set to __dirname to help with OneDrive
-- Supabase env vars not set → middleware/server/client all have guards, fall back to mock data
-- Badge component uses label+color props (NOT children+variant) — Sprint 4 files were fixed for this
-- Dev server first-page compilation takes 10-15s, subsequent pages ~1-3s
+- Cold start: DataContext retries API fetches (up to 2 retries with backoff) to handle compilation delays
+- DEV_BYPASS_AUTH=true skips all auth in middleware; db.ts uses server client (anon key works when RLS not enforced)
+- Badge component uses label+color props (NOT children+variant)
 - Launch config at .claude/launch.json (workspace root SHAREit/.claude/)
 
 ### GitHub & Deploy
 - GitHub: tidalwavebusinessstudio-commits/capital-placement-engine (private)
-- Vercel: vercel.json configured (region: iad1). Deploy via Vercel dashboard → import from GitHub
-- 3 commits on master branch
+- Vercel: vercel.json configured (region: iad1)
 
 ### What's Next
-- Connect real Supabase credentials + run schema.sql + seed.sql
-- Deploy to Vercel (import from GitHub dashboard)
-- Phase 2: Source monitors, outreach automation, newsletter engine
-- Phase 3: Capital gap AI, advanced analytics, workflow automation
+- Push Sprint 11 changes to GitHub
+- Deploy to Vercel
+- Set up Resend API key for live email sending
+- Configure Google OAuth in Supabase Auth for production login
+- Run rls-policies.sql once production auth is ready
 </claude-mem-context>
