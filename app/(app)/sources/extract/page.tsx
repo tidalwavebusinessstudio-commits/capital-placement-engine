@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Badge from "@/components/ui/Badge";
 import { formatCurrency } from "@/lib/utils/format";
+import { useToast } from "@/lib/store/ToastContext";
 import type { ExtractedProject } from "@/lib/ai/extract";
 
 const SECTOR_LABELS: Record<string, string> = {
@@ -21,6 +23,9 @@ export default function AIExtractPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ExtractedProject | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [converting, setConverting] = useState(false);
+  const router = useRouter();
+  const { toast } = useToast();
 
   async function handleExtract() {
     if (!text.trim()) return;
@@ -208,14 +213,36 @@ export default function AIExtractPage() {
 
             {/* Actions */}
             <div className="border-t border-border pt-4 flex items-center gap-3">
-              <Link
-                href="/projects/new"
-                className="inline-flex items-center gap-2 bg-brand text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-brand-hover transition-colors"
-              >
-                → Create Project
-              </Link>
               <button
-                onClick={() => { setResult(null); setText(""); }}
+                onClick={async () => {
+                  setConverting(true);
+                  try {
+                    const res = await fetch("/api/sources/convert", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ extracted: result, sourceText: text }),
+                    });
+                    if (!res.ok) {
+                      const data = await res.json();
+                      toast(data.error || "Conversion failed", "error");
+                      setConverting(false);
+                      return;
+                    }
+                    const data = await res.json();
+                    toast(`Project created: ${data.project.name}`);
+                    router.push(`/projects/${data.project.id}`);
+                  } catch {
+                    toast("Network error — please try again", "error");
+                    setConverting(false);
+                  }
+                }}
+                disabled={converting}
+                className="inline-flex items-center gap-2 bg-brand text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-brand-hover transition-colors disabled:opacity-50"
+              >
+                {converting ? "Converting..." : "Convert to Project"}
+              </button>
+              <button
+                onClick={() => { setResult(null); setText(""); setConverting(false); }}
                 className="text-sm text-text-secondary hover:text-text-primary transition-colors"
               >
                 Extract Another

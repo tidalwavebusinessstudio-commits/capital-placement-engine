@@ -5,6 +5,8 @@ import { SECTORS } from "@/lib/config/sectors";
 import { formatCurrency } from "@/lib/utils/format";
 import Badge from "@/components/ui/Badge";
 import ScoreGauge from "@/components/ui/ScoreGauge";
+import ConvertSourceButton from "@/components/sources/ConvertSourceButton";
+import DeepExtractButton from "@/components/sources/DeepExtractButton";
 
 const STATUS_COLORS: Record<string, "blue" | "green" | "amber" | "slate"> = {
   new: "blue",
@@ -37,14 +39,26 @@ export default async function SourceDetailPage({ params }: { params: Promise<{ i
           </div>
           <h1 className="text-xl font-bold text-text-primary">{source.title}</h1>
         </div>
-        {source.status === "new" && (
-          <Link
-            href={`/projects/new?source=${source.id}`}
-            className="inline-flex items-center gap-2 bg-brand text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-brand-hover transition-colors whitespace-nowrap"
-          >
-            Convert to Project
-          </Link>
-        )}
+        <div className="flex items-center gap-2">
+          {source.url && (source.status === "new" || source.status === "reviewed") && (
+            <DeepExtractButton sourceId={source.id} url={source.url} />
+          )}
+          {source.extracted_data &&
+            (source.extracted_data.project_name || source.extracted_data.total_project_cost) ? (
+              <ConvertSourceButton
+                sourceId={source.id}
+                extractedData={source.extracted_data}
+              />
+            ) : null}
+          {source.status === "new" && (
+            <Link
+              href={`/projects/new?source=${source.id}`}
+              className="inline-flex items-center gap-2 text-sm text-text-secondary font-medium hover:text-text-primary px-3 py-2 rounded-lg hover:bg-surface-secondary transition-colors whitespace-nowrap"
+            >
+              Manual Create
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* Details */}

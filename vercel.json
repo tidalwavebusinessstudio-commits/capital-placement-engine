@@ -12,5 +12,11 @@
         { "key": "Cache-Control", "value": "no-store" }
       ]
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/sources/feeds/check-all",
+      "schedule": "0 * * * *"
+    }
   ]
 }

@@ -234,6 +234,18 @@ CREATE TABLE IF NOT EXISTS activity_log (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 11. FEED CONFIGS (RSS/news source monitors)
+CREATE TABLE IF NOT EXISTS feed_configs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT NOT NULL,
+    url TEXT NOT NULL,
+    sector TEXT NOT NULL CHECK (sector IN ('data_center','cre','hospitality','energy','infrastructure','manufacturing','tech')),
+    enabled BOOLEAN DEFAULT true,
+    check_interval_minutes INTEGER DEFAULT 60,
+    last_checked_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- ============================================================
 -- INDEXES
 -- ============================================================
@@ -254,6 +266,7 @@ CREATE INDEX IF NOT EXISTS idx_compliance_log_action ON compliance_log(action);
 CREATE INDEX IF NOT EXISTS idx_compliance_log_entity ON compliance_log(entity_type, entity_id);
 CREATE INDEX IF NOT EXISTS idx_activity_log_entity ON activity_log(entity_type, entity_id);
 CREATE INDEX IF NOT EXISTS idx_activity_log_created ON activity_log(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_feed_configs_enabled ON feed_configs(enabled);
 
 -- ============================================================
 -- PROTECT COMPLIANCE LOG FROM UPDATES/DELETES

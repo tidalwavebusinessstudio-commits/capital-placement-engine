@@ -14,8 +14,9 @@ import {
 import type {
   Organization, Contact, Project, SourceRecord,
   Opportunity, Outreach, Newsletter, ComplianceLogEntry,
-  ActivityLogEntry,
+  ActivityLogEntry, FeedConfig,
 } from "@/lib/types";
+import { DEFAULT_FEEDS } from "@/lib/config/feeds";
 
 // Check if Supabase env vars are configured
 function isSupabaseConfigured(): boolean {
@@ -350,6 +351,37 @@ export async function insertActivity(entry: Omit<ActivityLogEntry, "id" | "creat
 
   const supabase = await getSupabaseClient();
   await supabase.from("activity_log").insert(entry);
+}
+
+// ============================================================
+// Feed Configs
+// ============================================================
+
+export async function getFeedConfigs(): Promise<FeedConfig[]> {
+  if (!isSupabaseConfigured()) {
+    return DEFAULT_FEEDS.map((f) => ({
+      id: f.id,
+      name: f.name,
+      url: f.url,
+      sector: f.sector,
+      enabled: f.enabled,
+      check_interval_minutes: f.checkInterval,
+      last_checked_at: f.lastCheckedAt,
+      created_at: new Date().toISOString(),
+    }));
+  }
+
+  const supabase = await getSupabaseClient();
+  const { data, error } = await supabase
+    .from("feed_configs")
+    .select("*")
+    .order("created_at");
+
+  if (error) {
+    console.error("getFeedConfigs error:", error);
+    return [];
+  }
+  return data as FeedConfig[];
 }
 
 // ============================================================

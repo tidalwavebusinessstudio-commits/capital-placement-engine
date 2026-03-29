@@ -8,6 +8,7 @@ import { SECTORS } from "@/lib/config/sectors";
 import { formatCurrency } from "@/lib/utils/format";
 import Badge from "@/components/ui/Badge";
 import ScoreGauge from "@/components/ui/ScoreGauge";
+import InlineDeepExtract from "@/components/sources/InlineDeepExtract";
 import type { SourceStatus } from "@/lib/types";
 
 const STATUS_COLORS: Record<string, "blue" | "green" | "amber" | "slate"> = {
@@ -173,6 +174,12 @@ export default function SourcesPage() {
 
                 <div className="flex items-center gap-2">
                   <ScoreGauge score={source.relevance_score} />
+                  {/* Deep extract for sources with URL but no extracted data */}
+                  {source.url &&
+                    (!source.extracted_data || Object.keys(source.extracted_data).length === 0) &&
+                    (source.status === "new" || source.status === "reviewed") && (
+                      <InlineDeepExtract sourceId={source.id} url={source.url} />
+                    )}
                   {/* Quick actions */}
                   {source.status === "new" && (
                     <div className="flex flex-col gap-1">

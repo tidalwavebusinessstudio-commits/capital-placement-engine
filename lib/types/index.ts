@@ -324,6 +324,18 @@ export interface ActivityLogEntry {
   created_at: string;
 }
 
+// --- Feed Configs ---
+export interface FeedConfig {
+  id: string;
+  name: string;
+  url: string;
+  sector: string;
+  enabled: boolean;
+  check_interval_minutes: number;
+  last_checked_at: string | null;
+  created_at: string;
+}
+
 // --- Dashboard KPIs ---
 export interface DashboardKPIs {
   total_pipeline_value: number;

@@ -1,27 +1,76 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useToast } from "@/lib/store/ToastContext";
 import { useData } from "@/lib/store/DataContext";
-import { DEFAULT_FEEDS, type FeedConfig, RELEVANCE_KEYWORDS } from "@/lib/config/feeds";
+import { RELEVANCE_KEYWORDS } from "@/lib/config/feeds";
 import { SECTORS } from "@/lib/config/sectors";
 import Badge from "@/components/ui/Badge";
-import type { SourceRecord, Sector } from "@/lib/types";
+import type { FeedConfig, Sector, SourceRecord } from "@/lib/types";
 
 export default function FeedsPage() {
   const { addSourceRecord } = useData();
   const { toast } = useToast();
-  const [feeds, setFeeds] = useState<FeedConfig[]>(DEFAULT_FEEDS);
+  const [feeds, setFeeds] = useState<FeedConfig[]>([]);
+  const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState<string | null>(null);
+  const [checkingAll, setCheckingAll] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
 
-  function toggleFeed(id: string) {
-    setFeeds((prev) =>
-      prev.map((f) => (f.id === id ? { ...f, enabled: !f.enabled } : f))
-    );
+  // Fetch feeds from API on mount
+  useEffect(() => {
+    async function loadFeeds() {
+      try {
+        const res = await fetch("/api/sources/feeds");
+        if (res.ok) {
+          const data = await res.json();
+          setFeeds(data);
+        }
+      } catch {
+        toast("Failed to load feeds", "error");
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadFeeds();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function toggleFeed(id: string) {
     const feed = feeds.find((f) => f.id === id);
-    toast(feed?.enabled ? `${feed.name} disabled` : `${feed?.name} enabled`);
+    if (!feed) return;
+
+    const newEnabled = !feed.enabled;
+
+    // Optimistic update
+    setFeeds((prev) =>
+      prev.map((f) => (f.id === id ? { ...f, enabled: newEnabled } : f))
+    );
+
+    try {
+      const res = await fetch("/api/sources/feeds", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, enabled: newEnabled }),
+      });
+
+      if (!res.ok) {
+        // Revert on failure
+        setFeeds((prev) =>
+          prev.map((f) => (f.id === id ? { ...f, enabled: !newEnabled } : f))
+        );
+        toast("Failed to update feed", "error");
+        return;
+      }
+
+      toast(newEnabled ? `${feed.name} enabled` : `${feed.name} disabled`);
+    } catch {
+      setFeeds((prev) =>
+        prev.map((f) => (f.id === id ? { ...f, enabled: !newEnabled } : f))
+      );
+      toast("Failed to update feed", "error");
+    }
   }
 
   async function checkFeed(feed: FeedConfig) {
@@ -67,9 +116,17 @@ export default function FeedsPage() {
         toast(`Checked ${feed.name} — ${data.newItems} new source${data.newItems === 1 ? "" : "s"} added`);
       }
 
+      // Update last_checked_at via PATCH
+      const now = new Date().toISOString();
+      await fetch("/api/sources/feeds", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: feed.id, last_checked_at: now }),
+      });
+
       setFeeds((prev) =>
         prev.map((f) =>
-          f.id === feed.id ? { ...f, lastCheckedAt: new Date().toISOString() } : f
+          f.id === feed.id ? { ...f, last_checked_at: now } : f
         )
       );
     } catch {
@@ -79,21 +136,67 @@ export default function FeedsPage() {
     }
   }
 
-  function handleAddFeed(e: React.FormEvent<HTMLFormElement>) {
+  async function checkAllFeeds() {
+    setCheckingAll(true);
+    try {
+      const res = await fetch("/api/sources/feeds/check-all", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        toast(`Checked ${data.checked} feeds — ${data.totalNew} new sources added`);
+        // Refresh feeds to get updated last_checked_at
+        const feedsRes = await fetch("/api/sources/feeds");
+        if (feedsRes.ok) {
+          const updatedFeeds = await feedsRes.json();
+          setFeeds(updatedFeeds);
+        }
+      } else {
+        toast("Failed to check all feeds", "error");
+      }
+    } catch {
+      toast("Failed to check all feeds", "error");
+    } finally {
+      setCheckingAll(false);
+    }
+  }
+
+  async function handleAddFeed(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    const newFeed: FeedConfig = {
-      id: `feed-${Date.now()}`,
-      name: (form.get("name") as string) || "Custom Feed",
-      url: (form.get("url") as string) || "",
-      sector: (form.get("sector") as string) || "cre",
-      enabled: true,
-      checkInterval: 60,
-      lastCheckedAt: null,
-    };
-    setFeeds((prev) => [...prev, newFeed]);
-    setShowAddForm(false);
-    toast(`Feed "${newFeed.name}" added`);
+    const name = (form.get("name") as string) || "Custom Feed";
+    const url = (form.get("url") as string) || "";
+    const sector = (form.get("sector") as string) || "cre";
+
+    try {
+      const res = await fetch("/api/sources/feeds", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, url, sector }),
+      });
+
+      if (!res.ok) {
+        toast("Failed to add feed", "error");
+        return;
+      }
+
+      const newFeed = await res.json();
+      setFeeds((prev) => [...prev, newFeed]);
+      setShowAddForm(false);
+      toast(`Feed "${newFeed.name}" added`);
+    } catch {
+      toast("Failed to add feed", "error");
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="text-sm text-text-muted">Loading feeds...</div>
+      </div>
+    );
   }
 
   return (
@@ -108,12 +211,21 @@ export default function FeedsPage() {
             {feeds.filter((f) => f.enabled).length} active feeds &middot; RSS and news auto-intake
           </p>
         </div>
-        <button
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="inline-flex items-center gap-2 bg-brand text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-brand-hover transition-colors"
-        >
-          + Add Feed
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={checkAllFeeds}
+            disabled={checkingAll}
+            className="inline-flex items-center gap-2 bg-surface border border-border text-text-primary text-sm font-medium px-4 py-2 rounded-lg hover:bg-surface-secondary transition-colors disabled:opacity-40"
+          >
+            {checkingAll ? "Checking..." : "Check All Feeds"}
+          </button>
+          <button
+            onClick={() => setShowAddForm(!showAddForm)}
+            className="inline-flex items-center gap-2 bg-brand text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-brand-hover transition-colors"
+          >
+            + Add Feed
+          </button>
+        </div>
       </div>
 
       {/* Add Feed Form */}
@@ -187,11 +299,11 @@ export default function FeedsPage() {
                         <Badge label={sectorConfig.label} color="slate" size="sm" />
                       )}
                       <span className="text-xs text-text-muted">
-                        Every {feed.checkInterval}min
+                        Every {feed.check_interval_minutes}min
                       </span>
-                      {feed.lastCheckedAt && (
+                      {feed.last_checked_at && (
                         <span className="text-xs text-green-600">
-                          Last: {new Date(feed.lastCheckedAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                          Last: {new Date(feed.last_checked_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
                         </span>
                       )}
                     </div>
