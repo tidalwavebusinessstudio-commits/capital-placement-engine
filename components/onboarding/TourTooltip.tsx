@@ -141,7 +141,7 @@ export default function TourTooltip() {
             )}
             <button
               onClick={isLastStep ? completeTour : nextStep}
-              className="text-sm font-medium text-white bg-brand px-4 py-1.5 rounded-lg hover:bg-brand-hover transition-colors"
+              className="text-sm font-medium text-white bg-blue-600 px-4 py-1.5 rounded-lg hover:bg-blue-700 transition-colors"
             >
               {isLastStep ? "Finish" : "Next"}
             </button>
