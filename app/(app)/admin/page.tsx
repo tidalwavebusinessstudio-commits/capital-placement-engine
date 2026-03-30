@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { MOCK_PROJECTS, MOCK_ORGANIZATIONS, MOCK_CONTACTS } from "@/lib/mock-data";
 import { MOCK_SOURCE_RECORDS, MOCK_OUTREACH, MOCK_COMPLIANCE_LOG, MOCK_OPPORTUNITIES, MOCK_NEWSLETTERS } from "@/lib/mock-data-extended";
 
@@ -24,6 +25,19 @@ export default function AdminPage() {
   return (
     <div>
       <h1 className="text-2xl font-bold text-text-primary mb-6">Admin</h1>
+
+      {/* Help & Reference */}
+      <div className="bg-surface rounded-xl border border-border p-5 mb-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-text-primary">Help &amp; Reference</h2>
+            <p className="text-xs text-text-muted mt-0.5">Learn what each part of Meridian Cap does</p>
+          </div>
+          <Link href="/admin/guide" className="inline-flex items-center gap-2 text-sm text-brand hover:text-brand-hover font-medium transition-colors">
+            View Guide 2192
+          </Link>
+        </div>
+      </div>
 
       {/* System Health */}
       <div className="bg-surface rounded-xl border border-border p-6 mb-6">

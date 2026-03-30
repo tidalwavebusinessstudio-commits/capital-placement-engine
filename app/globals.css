@@ -63,3 +63,26 @@
 .animate-slide-up {
   animation: slide-up 0.25s ease-out;
 }
+
+/* ============================================================
+   Onboarding Tour Animations
+   ============================================================ */
+
+@keyframes tour-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5); }
+  50% { box-shadow: 0 0 0 5px rgba(59, 130, 246, 0.2); }
+}
+
+.tour-highlight {
+  animation: tour-pulse 1.5s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+@keyframes tour-fade-in {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.animate-tour-fade-in {
+  animation: tour-fade-in 0.2s ease-out forwards;
+}

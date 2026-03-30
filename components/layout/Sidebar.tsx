@@ -40,6 +40,7 @@ export default function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
+              data-tour-id={item.href}
               className={`flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm transition-colors ${
                 isActive
                   ? "bg-sidebar-active/15 text-white font-medium"

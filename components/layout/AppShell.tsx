@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
+import TourTooltip from "@/components/onboarding/TourTooltip";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -38,6 +39,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <Topbar onMenuClick={() => setSidebarOpen((o) => !o)} />
         <main className="p-4 sm:p-6">{children}</main>
       </div>
+
+      {/* Onboarding tour overlay */}
+      <TourTooltip />
     </div>
   );
 }
